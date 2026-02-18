@@ -1,0 +1,174 @@
+{
+  "tests": [
+    {
+      "input": "{ user { name } }",
+      "should_parse": true,
+      "description": "Minimal query — shorthand with nested field"
+    },
+    {
+      "input": "query { user { id name email } }",
+      "should_parse": true,
+      "description": "Explicit query keyword"
+    },
+    {
+      "input": "query GetUser { user { id name } }",
+      "should_parse": true,
+      "description": "Named query operation"
+    },
+    {
+      "input": "mutation { createUser(name: \"Alice\") { id } }",
+      "should_parse": true,
+      "description": "Mutation with string argument"
+    },
+    {
+      "input": "subscription { messageAdded { id text } }",
+      "should_parse": true,
+      "description": "Subscription operation"
+    },
+    {
+      "input": "{ user(id: 42) { name } }",
+      "should_parse": true,
+      "description": "Integer argument"
+    },
+    {
+      "input": "{ product(price: 9.99) { name } }",
+      "should_parse": true,
+      "description": "Float argument"
+    },
+    {
+      "input": "{ user(active: true) { name } }",
+      "should_parse": true,
+      "description": "Boolean argument"
+    },
+    {
+      "input": "{ user(nickname: null) { name } }",
+      "should_parse": true,
+      "description": "Null argument"
+    },
+    {
+      "input": "{ user(role: ADMIN) { name } }",
+      "should_parse": true,
+      "description": "Enum argument"
+    },
+    {
+      "input": "{ user(tags: [\"a\", \"b\"]) { name } }",
+      "should_parse": true,
+      "description": "List argument"
+    },
+    {
+      "input": "{ user(filter: { name: \"Alice\", age: 30 }) { id } }",
+      "should_parse": true,
+      "description": "Object (input) argument"
+    },
+    {
+      "input": "{ fullName: user { name } }",
+      "should_parse": true,
+      "description": "Field alias"
+    },
+    {
+      "input": "{ first: user(id: 1) { name } second: user(id: 2) { name } }",
+      "should_parse": true,
+      "description": "Multiple aliased fields"
+    },
+    {
+      "input": "query GetUser($id: ID!) { user(id: $id) { name } }",
+      "should_parse": true,
+      "description": "Variable with non-null type"
+    },
+    {
+      "input": "query GetPosts($ids: [ID!]!) { posts(ids: $ids) { title } }",
+      "should_parse": true,
+      "description": "Variable with non-null list of non-null type"
+    },
+    {
+      "input": "query GetPosts($first: Int = 10) { posts(first: $first) { title } }",
+      "should_parse": true,
+      "description": "Variable with default value"
+    },
+    {
+      "input": "fragment UserFields on User { id name email }",
+      "should_parse": true,
+      "description": "Fragment definition"
+    },
+    {
+      "input": "{ user { ...UserFields } } fragment UserFields on User { id name }",
+      "should_parse": true,
+      "description": "Fragment spread in query"
+    },
+    {
+      "input": "{ search { ... on User { name } ... on Post { title } } }",
+      "should_parse": true,
+      "description": "Inline fragments on union type"
+    },
+    {
+      "input": "query Search($q: String!) { search(query: $q) { ... on User { id name email } ... on Post { id title content } ... on Comment { id text } } }",
+      "should_parse": true,
+      "description": "Real-world search query with inline fragments"
+    },
+    {
+      "input": "query GetRepo($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ...RepoInfo } } fragment RepoInfo on Repository { name description stargazerCount owner { login } }",
+      "should_parse": true,
+      "description": "Real-world GitHub-style query"
+    },
+    {
+      "input": "query GetFeed($userId: ID!, $first: Int = 20) { user(id: $userId) { name feed(first: $first) { edges { node { ... on Post { title } ... on Photo { url } } } } } }",
+      "should_parse": true,
+      "description": "Pagination query with nested inline fragments"
+    },
+    {
+      "input": "{ user(ids: []) { name } }",
+      "should_parse": true,
+      "description": "Empty list argument"
+    },
+    {
+      "input": "user { name }",
+      "should_parse": false,
+      "description": "Missing braces — bare field is not valid"
+    },
+    {
+      "input": "{ user { name }",
+      "should_parse": false,
+      "description": "Unclosed selection set"
+    },
+    {
+      "input": "query { }",
+      "should_parse": false,
+      "description": "Empty selection set — at least one selection required"
+    },
+    {
+      "input": "{ user(id: ) { name } }",
+      "should_parse": false,
+      "description": "Argument with missing value"
+    },
+    {
+      "input": "{ user(: 42) { name } }",
+      "should_parse": false,
+      "description": "Argument with missing name"
+    },
+    {
+      "input": "query ($id: ) { user(id: $id) { name } }",
+      "should_parse": false,
+      "description": "Variable definition with missing type"
+    },
+    {
+      "input": "fragment on User { name }",
+      "should_parse": false,
+      "description": "Fragment definition missing name"
+    },
+    {
+      "input": "fragment UserFields { name }",
+      "should_parse": false,
+      "description": "Fragment definition missing type condition"
+    },
+    {
+      "input": "{ ... }",
+      "should_parse": false,
+      "description": "Spread operator with nothing after it"
+    },
+    {
+      "input": "{ 123field { name } }",
+      "should_parse": false,
+      "description": "Field name starting with digit"
+    }
+  ]
+}

@@ -92,7 +92,9 @@ Build a grammar iteratively with an AI assistant:
 
 ## Example Grammars
 
-The `LarkGrammars/` directory includes sample grammars built using these tools, with reference specs, Lark grammar files, and test suites.
+The `examples/` directory includes sample grammars built using these tools, with Lark grammar files, test suites, and documentation:
+
+- **[GraphQL](examples/graphql/)** — executable subset of the GraphQL spec (queries, mutations, fragments, variables)
 
 ## Development
 

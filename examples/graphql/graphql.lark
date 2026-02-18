@@ -1,0 +1,94 @@
+// GraphQL Query Grammar (llguidance / Lark)
+//
+// Covers the executable subset of the GraphQL spec (June 2018):
+//   - Operations (query, mutation, subscription)
+//   - Selection sets, fields, aliases
+//   - Arguments and variables with type annotations
+//   - Fragment definitions, spreads, and inline fragments
+//   - All value types: int, float, string, boolean, null, enum, list, object
+//
+// Does NOT cover the schema definition language (SDL) or directives.
+
+start: definition+
+
+// Definitions ----------------------------------------------------------------
+
+definition: operation_definition
+          | fragment_definition
+
+operation_definition: selection_set
+                    | operation_type NAME? variable_definitions? selection_set
+
+operation_type: "query" | "mutation" | "subscription"
+
+// Fragments ------------------------------------------------------------------
+
+fragment_definition: "fragment" NAME type_condition selection_set
+
+type_condition: "on" NAME
+
+fragment_spread: "..." NAME
+
+inline_fragment: "..." type_condition? selection_set
+
+// Selection sets -------------------------------------------------------------
+
+selection_set: "{" selection+ "}"
+
+selection: field
+         | fragment_spread
+         | inline_fragment
+
+field: alias? NAME arguments? selection_set?
+
+alias: NAME ":"
+
+// Arguments & variables ------------------------------------------------------
+
+arguments: "(" argument+ ")"
+argument: NAME ":" value
+
+variable_definitions: "(" variable_definition+ ")"
+variable_definition: VARIABLE ":" type default_value?
+default_value: "=" value
+
+// Types ----------------------------------------------------------------------
+
+type: named_type "!"       // non-null named
+    | list_type "!"        // non-null list
+    | named_type
+    | list_type
+
+named_type: NAME
+list_type: "[" type "]"
+
+// Values ---------------------------------------------------------------------
+// Order matters: float before int, boolean/null before enum.
+
+value: SIGNED_FLOAT
+     | SIGNED_INT
+     | ESCAPED_STRING
+     | "true" | "false"
+     | "null"
+     | VARIABLE
+     | list_value
+     | object_value
+     | NAME                // enum value (catch-all, must be last)
+
+list_value: "[" value* "]"
+
+object_value: "{" object_field* "}"
+object_field: NAME ":" value
+
+// Terminals ------------------------------------------------------------------
+
+VARIABLE: "$" /[_A-Za-z][_0-9A-Za-z]*/
+NAME: /[_A-Za-z][_0-9A-Za-z]*/
+SIGNED_FLOAT: /[+-]?(\d+\.\d*|\.\d+)([eE][+-]?\d+)?/ | /[+-]?\d+[eE][+-]?\d+/
+
+%import common.SIGNED_INT
+%import common.ESCAPED_STRING
+
+%ignore /\s+/           // whitespace
+%ignore /#[^\r\n]*/     // comments
+%ignore ","             // commas are insignificant in GraphQL
