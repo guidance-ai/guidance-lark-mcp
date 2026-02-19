@@ -2,7 +2,6 @@
 """MCP server for llguidance grammar validation tools."""
 
 import asyncio
-import argparse
 import json
 from pathlib import Path
 from mcp.server import Server
@@ -18,8 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from mcp_grammar_tools.llg_tools import LLGuidanceToolContext
 
 # Global variables for server configuration
-ENABLE_LLM = False
-MODEL_PATH = None
+ENABLE_GENERATION = False
 
 # Initialize server
 server = Server("llguidance-grammar-tools")
@@ -71,30 +69,26 @@ async def list_tools() -> list[types.Tool]:
         )
     ]
     
-    # Add LLM generation tool if enabled
-    if ENABLE_LLM:
+    # Add generation tool if enabled
+    if ENABLE_GENERATION:
         tools.append(
             types.Tool(
                 name="generate_with_grammar",
-                description="Generate text using Phi-4 model constrained by an llguidance grammar. The model stays loaded in memory for fast iteration. Use this to test how well a grammar guides actual LLM generation.",
+                description="Generate text using an OpenAI model constrained by an llguidance grammar. Uses the OpenAI Responses API with a custom tool grammar format, so output is guaranteed to conform to the grammar. Use this to test how well a grammar guides actual LLM generation.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "messages": {
-                            "type": "array",
-                            "description": "List of message objects with 'role' and 'content' keys (e.g., [{\"role\": \"system\", \"content\": \"...\"}, {\"role\": \"user\", \"content\": \"...\"}])",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "role": {"type": "string"},
-                                    "content": {"type": "string"}
-                                },
-                                "required": ["role", "content"]
-                            }
+                        "prompt": {
+                            "type": "string",
+                            "description": "User prompt describing what text to generate"
                         },
                         "grammar": {
                             "type": "string",
                             "description": "llguidance grammar string or path to grammar file (.lark, .grammar)"
+                        },
+                        "model": {
+                            "type": "string",
+                            "description": "OpenAI model name (default: gpt-4.1)",
                         },
                         "max_tokens": {
                             "type": "integer",
@@ -107,7 +101,7 @@ async def list_tools() -> list[types.Tool]:
                             "default": 0.7
                         }
                     },
-                    "required": ["messages", "grammar"]
+                    "required": ["prompt", "grammar"]
                 }
             )
         )
@@ -155,12 +149,13 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
             result = { "documentation": tool_context.get_llguidance_documentation() }
         
         elif name == "generate_with_grammar":
-            if not ENABLE_LLM:
-                result = {"error": "LLM generation not enabled. Restart server with --enable-llm flag."}
+            if not ENABLE_GENERATION:
+                result = {"error": "Generation not enabled. Set ENABLE_GENERATION=true environment variable."}
             else:
                 generation_result = tool_context.generate_with_grammar(
-                    messages=arguments["messages"],
+                    prompt=arguments["prompt"],
                     grammar=arguments["grammar"],
+                    model=arguments.get("model"),
                     max_tokens=arguments.get("max_tokens", 300),
                     temperature=arguments.get("temperature", 0.7)
                 )
@@ -196,41 +191,20 @@ async def async_main():
 
 def main():
     """Synchronous entry point to start the MCP server."""
-    global ENABLE_LLM, MODEL_PATH, tool_context
+    global ENABLE_GENERATION, tool_context
     
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="MCP LLGuidance Grammar Tools Server")
-    parser.add_argument(
-        "--enable-llm",
-        action="store_true",
-        help="Enable LLM generation tools (requires --model-path)"
-    )
-    parser.add_argument(
-        "--model-path",
-        type=str,
-        required=False,
-        help="Path to Phi-4 ONNX model directory (required if --enable-llm is used)"
-    )
-    
-    args = parser.parse_args()
-    
-    # Validate that model-path is provided if enable-llm is set
-    if args.enable_llm and not args.model_path:
-        parser.error("--model-path is required when --enable-llm is used")
-    
-    ENABLE_LLM = args.enable_llm
-    MODEL_PATH = args.model_path if args.enable_llm else None
+    ENABLE_GENERATION = os.environ.get("ENABLE_GENERATION", "").lower() in ("1", "true", "yes")
+    model = os.environ.get("OPENAI_MODEL", "gpt-4.1")
     
     # Initialize tool context
-    tool_context = LLGuidanceToolContext(enable_llm=ENABLE_LLM, model_path=MODEL_PATH)
+    tool_context = LLGuidanceToolContext(enable_generation=ENABLE_GENERATION, model=model)
     
     # Log to stderr
-    if ENABLE_LLM:
-        print(f"Starting MCP LLGuidance Grammar Tools Server with LLM generation enabled...", file=sys.stderr, flush=True)
-        print(f"Model path: {MODEL_PATH}", file=sys.stderr, flush=True)
-        print("Loading Phi-4 model into memory...", file=sys.stderr, flush=True)
+    if ENABLE_GENERATION:
+        print(f"Starting MCP LLGuidance Grammar Tools Server with generation enabled...", file=sys.stderr, flush=True)
+        print(f"Model: {model}", file=sys.stderr, flush=True)
     else:
-        print("Starting MCP LLGuidance Grammar Tools Server (LLM generation disabled)...", file=sys.stderr, flush=True)
+        print("Starting MCP LLGuidance Grammar Tools Server (generation disabled)...", file=sys.stderr, flush=True)
     
     asyncio.run(async_main())
 

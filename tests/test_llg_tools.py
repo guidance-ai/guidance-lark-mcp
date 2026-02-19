@@ -1,10 +1,12 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from mcp_grammar_tools.llg_tools import (
     LLGuidanceToolContext,
     UnexpectedToken,
     UnexpectedEOF,
     ParseResult,
     GrammarValidationResult,
+    GenerationResult,
 )
 
 
@@ -544,3 +546,150 @@ start: "hello"
 
     assert result.total == 1
     assert result.passed == 1
+
+
+# --- generate_with_grammar tests ---
+
+def test_generate_disabled_by_default(tool_context: LLGuidanceToolContext):
+    """Test that generation returns error when not enabled."""
+    result = tool_context.generate_with_grammar(
+        prompt="Generate hello",
+        grammar='start: "hello"',
+    )
+    assert not result.is_valid
+    assert "not enabled" in result.error
+
+
+def test_generate_with_mock_openai():
+    """Test generate_with_grammar calls OpenAI API correctly."""
+    mock_tool_call = MagicMock()
+    mock_tool_call.type = "custom_tool_call"
+    mock_tool_call.input = "4 + 4"
+
+    mock_response = MagicMock()
+    mock_response.output = [mock_tool_call]
+
+    mock_client = MagicMock()
+    mock_client.responses.create.return_value = mock_response
+
+    ctx = LLGuidanceToolContext.__new__(LLGuidanceToolContext)
+    ctx.tokenizer = MagicMock()
+    ctx.enable_generation = True
+    ctx.model = "gpt-4.1"
+    ctx._openai_client = mock_client
+
+    grammar = """
+start: expr
+expr: term ("+" term)*
+term: /[0-9]+/
+"""
+
+    result = ctx.generate_with_grammar(
+        prompt="Add four plus four",
+        grammar=grammar,
+    )
+
+    assert result.is_valid
+    assert result.generated_text == "4 + 4"
+    assert result.model == "gpt-4.1"
+
+    # Verify API was called with correct structure
+    call_args = mock_client.responses.create.call_args
+    assert call_args.kwargs["model"] == "gpt-4.1"
+    tools = call_args.kwargs["tools"]
+    assert len(tools) == 1
+    assert tools[0]["type"] == "custom"
+    assert tools[0]["format"]["type"] == "grammar"
+    assert tools[0]["format"]["syntax"] == "lark"
+
+
+def test_generate_with_model_override():
+    """Test that model parameter overrides default model."""
+    mock_tool_call = MagicMock()
+    mock_tool_call.type = "custom_tool_call"
+    mock_tool_call.input = "hello"
+
+    mock_response = MagicMock()
+    mock_response.output = [mock_tool_call]
+
+    mock_client = MagicMock()
+    mock_client.responses.create.return_value = mock_response
+
+    ctx = LLGuidanceToolContext.__new__(LLGuidanceToolContext)
+    ctx.tokenizer = MagicMock()
+    ctx.enable_generation = True
+    ctx.model = "gpt-4.1"
+    ctx._openai_client = mock_client
+
+    result = ctx.generate_with_grammar(
+        prompt="Say hello",
+        grammar='start: "hello"',
+        model="gpt-4.1-mini",
+    )
+
+    assert result.model == "gpt-4.1-mini"
+    call_args = mock_client.responses.create.call_args
+    assert call_args.kwargs["model"] == "gpt-4.1-mini"
+
+
+def test_generate_handles_api_error():
+    """Test that API errors are caught and returned in result."""
+    mock_client = MagicMock()
+    mock_client.responses.create.side_effect = Exception("API rate limit exceeded")
+
+    ctx = LLGuidanceToolContext.__new__(LLGuidanceToolContext)
+    ctx.tokenizer = MagicMock()
+    ctx.enable_generation = True
+    ctx.model = "gpt-4.1"
+    ctx._openai_client = mock_client
+
+    result = ctx.generate_with_grammar(
+        prompt="Generate something",
+        grammar='start: "hello"',
+    )
+
+    assert not result.is_valid
+    assert "rate limit" in result.error
+
+
+def test_generate_no_tool_call_in_response():
+    """Test handling when model returns no custom_tool_call."""
+    mock_item = MagicMock()
+    mock_item.type = "reasoning"
+
+    mock_response = MagicMock()
+    mock_response.output = [mock_item]
+
+    mock_client = MagicMock()
+    mock_client.responses.create.return_value = mock_response
+
+    ctx = LLGuidanceToolContext.__new__(LLGuidanceToolContext)
+    ctx.tokenizer = MagicMock()
+    ctx.enable_generation = True
+    ctx.model = "gpt-4.1"
+    ctx._openai_client = mock_client
+
+    result = ctx.generate_with_grammar(
+        prompt="Generate something",
+        grammar='start: "hello"',
+    )
+
+    assert not result.is_valid
+    assert "No grammar-constrained output" in result.error
+
+
+def test_generate_no_client():
+    """Test error when OpenAI client is not initialized."""
+    ctx = LLGuidanceToolContext.__new__(LLGuidanceToolContext)
+    ctx.tokenizer = MagicMock()
+    ctx.enable_generation = True
+    ctx.model = "gpt-4.1"
+    ctx._openai_client = None
+
+    result = ctx.generate_with_grammar(
+        prompt="Generate something",
+        grammar='start: "hello"',
+    )
+
+    assert not result.is_valid
+    assert "not initialized" in result.error

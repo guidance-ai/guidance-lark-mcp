@@ -1,4 +1,4 @@
-from typing import Literal, Union, Annotated, Optional
+from typing import Literal, Union, Annotated
 from pydantic import BaseModel, Field, computed_field
 from llguidance import LLTokenizer, LLMatcher
 from pathlib import Path
@@ -78,152 +78,110 @@ class GenerationResult(BaseModel):
     """Result of LLM generation with grammar."""
     generated_text: str
     is_valid: bool = True
-    error: Optional[str] = None
+    error: str | None = None
+    model: str | None = None
 
 
 class LLGuidanceToolContext:
-    def __init__(self, enable_llm: bool = False, model_path: Optional[str] = None):
+    def __init__(self, enable_generation: bool = False, model: str = "gpt-4.1"):
         self.tokenizer = LLTokenizer("byte")
-        self.enable_llm = enable_llm
-        self.model_path = model_path
-        self._phi4_model = None
-        self._phi4_tokenizer = None
-        
-        if enable_llm and model_path:
-            self._load_phi4_model()
+        self.enable_generation = enable_generation
+        self.model = model
+        self._openai_client = None
 
-    def _load_phi4_model(self):
-        """Load Phi-4 model into memory."""
-        if self._phi4_model is not None:
-            return  # Already loaded
-            
+        if enable_generation:
+            self._init_openai_client()
+
+    def _init_openai_client(self):
+        """Initialize OpenAI client. Requires OPENAI_API_KEY env var."""
         try:
-            import onnxruntime_genai as og
-            from pathlib import Path
-            import json
-            
-            # Apply tokenizer fix
-            model_dir = Path(self.model_path)
-            config_path = model_dir / "tokenizer_config.json"
-            if config_path.exists():
-                with open(config_path) as f:
-                    config = json.load(f)
-                
-                tokens_to_fix = ["200019", "200020", "200021", "200022"]
-                for token_id in tokens_to_fix:
-                    if token_id in config.get("added_tokens_decoder", {}):
-                        config["added_tokens_decoder"][token_id]["special"] = False
-                
-                with open(config_path, 'w') as f:
-                    json.dump(config, f, indent=2)
-            
-            tokenizer_path = model_dir / "tokenizer.json"
-            if tokenizer_path.exists():
-                with open(tokenizer_path) as f:
-                    tokenizer_data = json.load(f)
-                
-                for token in tokenizer_data.get("added_tokens", []):
-                    if token.get("id") in [200019, 200020, 200021, 200022]:
-                        token["special"] = False
-                
-                with open(tokenizer_path, 'w') as f:
-                    json.dump(tokenizer_data, f, indent=2, ensure_ascii=False)
-            
-            # Load model
-            self._phi4_model = og.Model(self.model_path)
-            self._phi4_tokenizer = og.Tokenizer(self._phi4_model)
-            
+            from openai import OpenAI
+            self._openai_client = OpenAI()
         except Exception as e:
-            raise RuntimeError(f"Failed to load Phi-4 model: {e}")
+            raise RuntimeError(f"Failed to initialize OpenAI client: {e}")
 
     def generate_with_grammar(
         self,
-        messages: list[dict[str, str]],
+        prompt: str,
         grammar: str,
+        model: str | None = None,
         max_tokens: int = 300,
-        temperature: float = 0.7
+        temperature: float = 0.7,
     ) -> GenerationResult:
         """
-        Generate text using Phi-4 model with grammar constraint.
-        
+        Generate text using OpenAI API constrained by a Lark grammar.
+
+        Uses the Responses API with a custom tool that has a grammar format
+        constraint, so the model output is guaranteed to conform to the grammar.
+
         Args:
-            messages: List of message dicts with 'role' and 'content' keys
+            prompt: The user prompt describing what to generate
             grammar: Lark grammar string or path to grammar file
+            model: OpenAI model name (defaults to instance model)
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature
-            
+
         Returns:
             GenerationResult with generated text or error
         """
-        if not self.enable_llm:
+        if not self.enable_generation:
             return GenerationResult(
                 generated_text="",
                 is_valid=False,
-                error="LLM generation not enabled. Start server with --enable-llm flag."
+                error="Generation not enabled. Set ENABLE_GENERATION=true environment variable.",
             )
-        
-        if self._phi4_model is None:
+
+        if self._openai_client is None:
             return GenerationResult(
                 generated_text="",
                 is_valid=False,
-                error="Phi-4 model not loaded"
+                error="OpenAI client not initialized. Set OPENAI_API_KEY environment variable.",
             )
-        
+
         try:
-            import onnxruntime_genai as og
-            
-            # Resolve grammar
             grammar_content = self._resolve_grammar_input(grammar)
-            
-            # Format messages into prompt
-            prompt = self._phi4_tokenizer.apply_chat_template(
-                json.dumps(messages),
-                add_generation_prompt=True
-            )
-            
-            # Tokenize
-            tokens = self._phi4_tokenizer.encode(prompt)
-            
-            # Setup generation parameters
-            params = og.GeneratorParams(self._phi4_model)
-            params.set_search_options(
-                max_length=len(tokens) + max_tokens,
-                do_sample=True,
+            use_model = model or self.model
+
+            response = self._openai_client.responses.create(
+                model=use_model,
+                input=[{"role": "user", "content": prompt}],
+                tools=[
+                    {
+                        "type": "custom",
+                        "name": "generate",
+                        "description": "Generate text conforming to the provided grammar.",
+                        "format": {
+                            "type": "grammar",
+                            "syntax": "lark",
+                            "definition": grammar_content,
+                        },
+                    }
+                ],
+                tool_choice={"type": "function", "name": "generate"},
+                max_output_tokens=max_tokens,
                 temperature=temperature,
-                top_k=0
             )
-            
-            # Apply grammar constraint
-            params.set_guidance("lark_grammar", grammar_content)
-            
-            # Generate
-            generator = og.Generator(self._phi4_model, params)
-            generator.append_tokens(tokens)
-            
-            token_count = 0
-            while not generator.is_done() and token_count < max_tokens:
-                generator.generate_next_token()
-                token_count += 1
-            
-            # Decode output
-            sequence = generator.get_sequence(0)
-            full_output = self._phi4_tokenizer.decode(sequence)
-            
-            # Extract assistant's response
-            if "<|assistant|>" in full_output:
-                response = full_output.split("<|assistant|>")[-1].strip()
-            else:
-                response = full_output[len(prompt):].strip()
-            
-            response = response.replace("<|end|>", "").strip()
-            
-            return GenerationResult(generated_text=response)
-            
+
+            # Extract generated text from custom_tool_call output
+            for item in response.output:
+                if getattr(item, "type", None) == "custom_tool_call":
+                    return GenerationResult(
+                        generated_text=item.input,
+                        model=use_model,
+                    )
+
+            return GenerationResult(
+                generated_text="",
+                is_valid=False,
+                error="No grammar-constrained output returned by model.",
+                model=use_model,
+            )
+
         except Exception as e:
             return GenerationResult(
                 generated_text="",
                 is_valid=False,
-                error=f"Generation error: {str(e)}"
+                error=f"Generation error: {str(e)}",
             )
 
     def _calculate_line_column(self, text: str, position: int) -> tuple[int, int]:

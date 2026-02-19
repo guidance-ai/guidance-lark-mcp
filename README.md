@@ -32,6 +32,10 @@ pip install -e .
       "type": "local",
       "command": "uvx",
       "args": ["guidance-lark-mcp"],
+      "env": {
+        "ENABLE_GENERATION": "true",
+        "OPENAI_API_KEY": "your-key-here"
+      },
       "tools": ["*"]
     }
   }
@@ -44,7 +48,11 @@ pip install -e .
   "mcpServers": {
     "grammar-tools": {
       "command": "uvx",
-      "args": ["guidance-lark-mcp"]
+      "args": ["guidance-lark-mcp"],
+      "env": {
+        "ENABLE_GENERATION": "true",
+        "OPENAI_API_KEY": "your-key-here"
+      }
     }
   }
 }
@@ -77,7 +85,7 @@ pip install -e .
 
 3. **`get_llguidance_documentation`** — Fetch the llguidance grammar syntax documentation from the official repo.
 
-4. **`generate_with_grammar`** *(optional, requires `--enable-llm`)* — Generate text using a local Phi-4 ONNX model constrained by a grammar.
+4. **`generate_with_grammar`** *(optional, requires `ENABLE_GENERATION=true`)* — Generate text using an OpenAI model constrained by a grammar. Uses the [Responses API with custom tool grammar format](https://developers.openai.com/api/docs/guides/function-calling/#context-free-grammars), so output is guaranteed to conform to the grammar. Requires `OPENAI_API_KEY` environment variable.
 
 ## Example Workflow
 
