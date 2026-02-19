@@ -11,7 +11,7 @@ Usage:
     python demo_generate.py
 
     # With a specific model:
-    python demo_generate.py --model microsoft/Phi-3.5-mini-instruct
+    python demo_generate.py --model microsoft/Phi-4-mini-instruct
 
     # With a GGUF model via llama.cpp:
     python demo_generate.py --backend llamacpp --model path/to/model.gguf
@@ -59,7 +59,7 @@ def generate_graphql(lm, grammar: str, prompt: str, max_tokens: int = 256) -> st
 
 def main():
     parser = argparse.ArgumentParser(description="Generate valid GraphQL with guidance + Lark grammar")
-    parser.add_argument("--model", default="microsoft/Phi-4-mini-instruct", help="Model name or path")
+    parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct", help="Model name or path")
     parser.add_argument("--backend", default="transformers", choices=["transformers", "llamacpp"])
     parser.add_argument("--max-tokens", type=int, default=256)
     parser.add_argument("--prompt", type=str, default=None, help="Custom prompt (otherwise runs built-in examples)")

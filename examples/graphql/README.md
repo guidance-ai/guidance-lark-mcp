@@ -34,14 +34,14 @@ The demo script uses the [guidance](https://github.com/guidance-ai/guidance) lib
 ```bash
 pip install -r examples/graphql/requirements.txt
 
-# Run with default model (Phi-4-mini-instruct)
+# Run with default model (Qwen2.5-0.5B-Instruct)
 python demo_generate.py
 
 # Or specify a model
 python demo_generate.py --model microsoft/Phi-3.5-mini-instruct
 ```
 
-The grammar constrains the LLM's output token-by-token, so every generated query is valid GraphQL by construction.
+The default model ([Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)) is ~950MB and runs on CPU. It's small enough for a quick demo — the grammar constraint guarantees valid syntax regardless of model size, though larger models will produce more semantically meaningful queries.
 
 ## Example Inputs
 
