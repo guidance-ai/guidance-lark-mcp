@@ -109,8 +109,8 @@ The `examples/` directory includes sample grammars built using these tools, with
 ```bash
 git clone https://github.com/guidance-ai/guidance-lark-mcp
 cd guidance-lark-mcp
-uv venv && uv pip install -e . && uv pip install pytest pytest-asyncio
-pytest tests/test_llg_tools.py -q
+uv sync
+uv run pytest tests/ -q
 ```
 
 ## Publishing
@@ -122,6 +122,10 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-This will build, publish to PyPI, publish to the MCP Registry, and create a GitHub Release.
+This triggers the release workflow which:
+1. Runs tests across Python 3.10–3.12
+2. Builds and publishes to PyPI (via Trusted Publishing)
+3. Publishes to the MCP Registry
+4. Creates a GitHub Release
 
-Requires `PYPI_API_TOKEN` secret in the GitHub repository settings.
+PyPI publishing uses [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC) — no API tokens needed.
