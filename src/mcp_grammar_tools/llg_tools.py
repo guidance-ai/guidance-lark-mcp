@@ -4,6 +4,10 @@ from llguidance import LLTokenizer, LLMatcher
 from pathlib import Path
 import requests
 import json
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UnexpectedToken(BaseModel):
     error_type: Literal["unexpected_token"] = "unexpected_token"
@@ -93,12 +97,57 @@ class LLGuidanceToolContext:
             self._init_openai_client()
 
     def _init_openai_client(self):
-        """Initialize OpenAI client. Requires OPENAI_API_KEY env var."""
+        """Initialize OpenAI client with auto-detection of Azure Entra ID vs API key auth."""
         try:
-            from openai import OpenAI
-            self._openai_client = OpenAI()
+            azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+
+            if azure_endpoint:
+                self._openai_client = self._init_azure_client(azure_endpoint)
+            else:
+                from openai import OpenAI
+                self._openai_client = OpenAI()
+
+                base_url = os.environ.get("OPENAI_BASE_URL", "")
+                if base_url:
+                    logger.info("OpenAI backend: custom endpoint (%s)", base_url)
+                else:
+                    logger.info("OpenAI backend: OpenAI (default)")
+
+            logger.info("Default model: %s", self.model)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize OpenAI client: {e}")
+
+    def _init_azure_client(self, azure_endpoint: str):
+        """Initialize AzureOpenAI client with Entra ID (DefaultAzureCredential) or API key."""
+        azure_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+        api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
+
+        if azure_api_key:
+            from openai import AzureOpenAI
+            logger.info("OpenAI backend: Azure OpenAI with API key (%s)", azure_endpoint)
+            return AzureOpenAI(
+                azure_endpoint=azure_endpoint,
+                api_key=azure_api_key,
+                api_version=api_version,
+            )
+        else:
+            try:
+                from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+                from openai import AzureOpenAI
+            except ImportError:
+                raise RuntimeError(
+                    "AZURE_OPENAI_ENDPOINT is set but azure-identity is not installed. "
+                    "Install with: pip install guidance-lark-mcp[azure]"
+                )
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+            )
+            logger.info("OpenAI backend: Azure OpenAI with Entra ID (%s)", azure_endpoint)
+            return AzureOpenAI(
+                azure_endpoint=azure_endpoint,
+                azure_ad_token_provider=token_provider,
+                api_version=api_version,
+            )
 
     def generate_with_grammar(
         self,

@@ -29,6 +29,9 @@ dependencies = [
     "requests>=2.32.5",
 ]
 
+[project.optional-dependencies]
+azure = ["azure-identity>=1.16.0"]
+
 [project.urls]
 Homepage = "https://github.com/guidance-ai/guidance-lark-mcp"
 Repository = "https://github.com/guidance-ai/guidance-lark-mcp.git"

@@ -85,7 +85,66 @@ pip install -e .
 
 3. **`get_llguidance_documentation`** — Fetch the llguidance grammar syntax documentation from the official repo.
 
-4. **`generate_with_grammar`** *(optional, requires `ENABLE_GENERATION=true`)* — Generate text using an OpenAI model constrained by a grammar. Uses the [Responses API with custom tool grammar format](https://developers.openai.com/api/docs/guides/function-calling/#context-free-grammars), so output is guaranteed to conform to the grammar. Requires `OPENAI_API_KEY` environment variable.
+4. **`generate_with_grammar`** *(optional, requires `ENABLE_GENERATION=true`)* — Generate text using an OpenAI model constrained by a grammar. Uses the [Responses API with custom tool grammar format](https://developers.openai.com/api/docs/guides/function-calling/#context-free-grammars), so output is guaranteed to conform to the grammar. Requires `OPENAI_API_KEY` environment variable. See [Backend Configuration](#backend-configuration) for Azure and other endpoints.
+
+## Backend Configuration
+
+The `generate_with_grammar` tool uses the OpenAI Python SDK, which natively supports multiple backends via environment variables:
+
+| Backend | Required env vars | Optional env vars |
+|---------|-------------------|-------------------|
+| **OpenAI** (default) | `OPENAI_API_KEY` | `OPENAI_MODEL` |
+| **Azure OpenAI (API key)** | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` | `AZURE_OPENAI_API_VERSION`, `OPENAI_MODEL` |
+| **Azure OpenAI (Entra ID)** | `AZURE_OPENAI_ENDPOINT` + `az login` | `AZURE_OPENAI_API_VERSION`, `OPENAI_MODEL` |
+| **Custom endpoint** | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | `OPENAI_MODEL` |
+
+The server auto-detects which backend to use:
+- If `AZURE_OPENAI_ENDPOINT` is set → uses `AzureOpenAI` client (with Entra ID or API key)
+- Otherwise → uses `OpenAI` client (reads `OPENAI_API_KEY` and `OPENAI_BASE_URL` automatically)
+
+The server logs which backend it detects on startup.
+
+### Example: Azure OpenAI (API key)
+```json
+{
+  "mcpServers": {
+    "grammar-tools": {
+      "type": "local",
+      "command": "uvx",
+      "args": ["guidance-lark-mcp"],
+      "env": {
+        "ENABLE_GENERATION": "true",
+        "AZURE_OPENAI_ENDPOINT": "https://my-resource.openai.azure.com",
+        "AZURE_OPENAI_API_KEY": "your-azure-key",
+        "OPENAI_MODEL": "gpt-4.1"
+      },
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+### Example: Azure OpenAI (Entra ID / keyless)
+
+Requires `az login` and the `azure` extra: `pip install guidance-lark-mcp[azure]`
+
+```json
+{
+  "mcpServers": {
+    "grammar-tools": {
+      "type": "local",
+      "command": "uvx",
+      "args": ["guidance-lark-mcp[azure]"],
+      "env": {
+        "ENABLE_GENERATION": "true",
+        "AZURE_OPENAI_ENDPOINT": "https://my-resource.openai.azure.com",
+        "OPENAI_MODEL": "gpt-4.1"
+      },
+      "tools": ["*"]
+    }
+  }
+}
+```
 
 ## Example Workflow
 
