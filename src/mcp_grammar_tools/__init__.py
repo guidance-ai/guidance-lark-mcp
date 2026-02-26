@@ -12,7 +12,12 @@ from .llg_tools import (
     GrammarValidationResult,
 )
 
-__version__ = "0.1.0"
+from importlib.metadata import version as _version, PackageNotFoundError
+
+try:
+    __version__ = _version("guidance-lark-mcp")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
 
 __all__ = [
     "LLGuidanceToolContext",
