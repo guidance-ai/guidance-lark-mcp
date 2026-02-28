@@ -198,7 +198,6 @@ class LLGuidanceToolContext:
                     {
                         "type": "custom",
                         "name": "generate",
-                        "description": "Generate text conforming to the provided grammar.",
                         "format": {
                             "type": "grammar",
                             "syntax": "lark",
@@ -206,7 +205,7 @@ class LLGuidanceToolContext:
                         },
                     }
                 ],
-                tool_choice={"type": "function", "name": "generate"},
+                tool_choice="required",
                 max_output_tokens=max_tokens,
                 temperature=temperature,
             )
