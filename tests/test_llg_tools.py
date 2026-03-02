@@ -693,3 +693,25 @@ def test_generate_no_client():
 
     assert not result.is_valid
     assert "not initialized" in result.error
+
+
+@patch.dict("os.environ", {"AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com", "AZURE_OPENAI_API_KEY": "test-key"})
+@patch("mcp_grammar_tools.llg_tools.LLGuidanceToolContext._init_azure_client")
+def test_init_detects_azure_with_api_key(mock_azure_client):
+    """Test that AZURE_OPENAI_ENDPOINT triggers Azure client init."""
+    mock_azure_client.return_value = MagicMock()
+    ctx = LLGuidanceToolContext(enable_generation=True)
+    mock_azure_client.assert_called_once_with("https://test.openai.azure.com")
+    assert ctx._openai_client is not None
+
+
+@patch.dict("os.environ", {}, clear=False)
+@patch("openai.OpenAI")
+def test_init_defaults_to_openai(mock_openai_cls):
+    """Test that without AZURE_OPENAI_ENDPOINT, plain OpenAI client is used."""
+    env = {k: v for k, v in __import__("os").environ.items() if not k.startswith("AZURE_OPENAI_ENDPOINT")}
+    with patch.dict("os.environ", env, clear=True):
+        mock_openai_cls.return_value = MagicMock()
+        ctx = LLGuidanceToolContext(enable_generation=True)
+        mock_openai_cls.assert_called_once()
+        assert ctx._openai_client is not None
