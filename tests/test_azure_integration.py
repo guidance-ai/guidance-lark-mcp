@@ -37,7 +37,7 @@ name: /[A-Z][a-z]+/
     result = azure_context.generate_with_grammar(
         prompt="Greet someone by name.",
         grammar=grammar,
-        max_tokens=500,
+        max_tokens=1000,
         reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
@@ -57,7 +57,7 @@ ws: /\s*/
     result = azure_context.generate_with_grammar(
         prompt="Generate a JSON object with a person's name and age.",
         grammar=grammar,
-        max_tokens=500,
+        max_tokens=1000,
         reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
@@ -77,7 +77,7 @@ OP: " + " | " - " | " * "
     result = azure_context.generate_with_grammar(
         prompt="Write a simple arithmetic expression.",
         grammar=grammar,
-        max_tokens=500,
+        max_tokens=1000,
         reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
@@ -96,7 +96,7 @@ CONTINUATION: /[^"]*/
     result = azure_context.generate_with_grammar(
         prompt="Tell me a story.",
         grammar=grammar,
-        max_tokens=500,
+        max_tokens=1000,
         reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
@@ -115,7 +115,7 @@ color: "red" | "green" | "blue" | "yellow" | "purple"
     result = azure_context.generate_with_grammar(
         prompt="Pick a color.",
         grammar=grammar,
-        max_tokens=500,
+        max_tokens=1000,
         reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
