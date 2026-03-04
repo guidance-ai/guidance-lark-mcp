@@ -106,7 +106,7 @@ class LLGuidanceToolContext:
         grammar: str,
         model: str | None = None,
         max_tokens: int = 300,
-        temperature: float = 0.7,
+        temperature: float | None = None,
     ) -> GenerationResult:
         """
         Generate text using OpenAI API constrained by a Lark grammar.
@@ -119,7 +119,7 @@ class LLGuidanceToolContext:
             grammar: Lark grammar string or path to grammar file
             model: OpenAI model name (defaults to instance model)
             max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature
+            temperature: Sampling temperature (omitted if None, as some models don't support it)
 
         Returns:
             GenerationResult with generated text or error
@@ -142,7 +142,7 @@ class LLGuidanceToolContext:
             grammar_content = self._resolve_grammar_input(grammar)
             use_model = model or self.model
 
-            response = self._openai_client.responses.create(
+            kwargs = dict(
                 model=use_model,
                 input=[{"role": "user", "content": prompt}],
                 tools=[
@@ -159,8 +159,11 @@ class LLGuidanceToolContext:
                 ],
                 tool_choice={"type": "function", "name": "generate"},
                 max_output_tokens=max_tokens,
-                temperature=temperature,
             )
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+
+            response = self._openai_client.responses.create(**kwargs)
 
             # Extract generated text from custom_tool_call output
             for item in response.output:

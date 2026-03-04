@@ -97,8 +97,7 @@ async def list_tools() -> list[types.Tool]:
                         },
                         "temperature": {
                             "type": "number",
-                            "description": "Sampling temperature (default: 0.7)",
-                            "default": 0.7
+                            "description": "Sampling temperature (omit for reasoning models that don't support it)",
                         }
                     },
                     "required": ["prompt", "grammar"]
@@ -157,7 +156,7 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     grammar=arguments["grammar"],
                     model=arguments.get("model"),
                     max_tokens=arguments.get("max_tokens", 300),
-                    temperature=arguments.get("temperature", 0.7)
+                    temperature=arguments.get("temperature")
                 )
                 result = generation_result.model_dump()
 
