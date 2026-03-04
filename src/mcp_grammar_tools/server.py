@@ -12,8 +12,8 @@ import mcp.types as types
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from mcp_grammar_tools import __version__
 from mcp_grammar_tools.llg_tools import LLGuidanceToolContext
 
 # Global variables for server configuration
@@ -180,7 +180,7 @@ async def async_main():
             write_stream,
             InitializationOptions(
                 server_name="llguidance-grammar-tools",
-                server_version="0.1.0",
+                server_version=__version__,
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={},
