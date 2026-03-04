@@ -156,6 +156,7 @@ class LLGuidanceToolContext:
         model: str | None = None,
         max_tokens: int = 300,
         temperature: float | None = None,
+        reasoning_effort: str | None = None,
     ) -> GenerationResult:
         """
         Generate text using OpenAI API constrained by a Lark grammar.
@@ -169,6 +170,7 @@ class LLGuidanceToolContext:
             model: OpenAI model name (defaults to instance model)
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (omitted if None, as some models don't support it)
+            reasoning_effort: Reasoning effort ("low", "medium", "high")
 
         Returns:
             GenerationResult with generated text or error
@@ -207,24 +209,29 @@ class LLGuidanceToolContext:
                 ],
                 tool_choice="required",
                 max_output_tokens=max_tokens,
+                stream=False,
             )
             if temperature is not None:
                 kwargs["temperature"] = temperature
+            if reasoning_effort is not None:
+                kwargs["reasoning"] = {"effort": reasoning_effort}
 
             response = self._openai_client.responses.create(**kwargs)
 
             # Extract generated text from custom_tool_call output
             for item in response.output:
+                logger.debug("Response output item: type=%s, %s", getattr(item, "type", None), item)
                 if getattr(item, "type", None) == "custom_tool_call":
                     return GenerationResult(
                         generated_text=item.input,
                         model=use_model,
                     )
 
+            output_types = [getattr(item, "type", None) for item in response.output]
             return GenerationResult(
                 generated_text="",
                 is_valid=False,
-                error="No grammar-constrained output returned by model.",
+                error=f"No grammar-constrained output returned by model. Output types: {output_types}",
                 model=use_model,
             )
 

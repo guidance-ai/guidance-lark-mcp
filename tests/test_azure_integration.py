@@ -1,8 +1,4 @@
-"""Integration tests that call Azure OpenAI with grammar-constrained generation.
-
-These tests are skipped unless AZURE_OPENAI_ENDPOINT is set, so they only
-run in the ADO pipeline (guidance-build) where Azure credentials are available.
-"""
+"""Integration tests that call Azure OpenAI with grammar-constrained generation."""
 
 import os
 
@@ -41,7 +37,8 @@ name: /[A-Z][a-z]+/
     result = azure_context.generate_with_grammar(
         prompt="Greet someone by name.",
         grammar=grammar,
-        max_tokens=50,
+        max_tokens=500,
+        reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
     assert result.generated_text
@@ -60,7 +57,8 @@ ws: /\s*/
     result = azure_context.generate_with_grammar(
         prompt="Generate a JSON object with a person's name and age.",
         grammar=grammar,
-        max_tokens=100,
+        max_tokens=500,
+        reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
     assert result.generated_text
@@ -79,7 +77,8 @@ OP: " + " | " - " | " * "
     result = azure_context.generate_with_grammar(
         prompt="Write a simple arithmetic expression.",
         grammar=grammar,
-        max_tokens=50,
+        max_tokens=500,
+        reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
     assert result.generated_text
@@ -97,7 +96,8 @@ CONTINUATION: /[^"]*/
     result = azure_context.generate_with_grammar(
         prompt="Tell me a story.",
         grammar=grammar,
-        max_tokens=100,
+        max_tokens=500,
+        reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
     assert result.generated_text.startswith("Once upon a time"), (
@@ -115,7 +115,8 @@ color: "red" | "green" | "blue" | "yellow" | "purple"
     result = azure_context.generate_with_grammar(
         prompt="Pick a color.",
         grammar=grammar,
-        max_tokens=10,
+        max_tokens=500,
+        reasoning_effort="low",
     )
     assert result.is_valid, f"Generation failed: {result.error}"
     assert result.generated_text in {"red", "green", "blue", "yellow", "purple"}, (
