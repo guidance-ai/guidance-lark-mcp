@@ -9,7 +9,7 @@
   },
   "packages": [
     {
-      "registry_type": "pypi",
+      "registryType": "pypi",
       "identifier": "guidance-lark-mcp",
       "version": "{{VERSION}}",
       "transport": {
