@@ -233,6 +233,10 @@ Common issues:
 - **Missing credentials** — `ENABLE_GENERATION=true` without a valid `OPENAI_API_KEY` or `AZURE_OPENAI_ENDPOINT`. The server will still start and serve validation tools; `generate_with_grammar` will return a descriptive error.
 - **Azure Entra ID** — make sure you've run `az login` and are using `guidance-lark-mcp[azure]` (not the base package).
 - **Slow first start** — `uvx` needs to resolve and install dependencies on first run, which may exceed the MCP client's connection timeout. Run `uvx guidance-lark-mcp` once manually to warm the cache.
+- **Updating to a new version** — `uvx` caches packages, so after a new release you may need to clear the cache and restart your MCP client:
+  ```bash
+  uv cache clean guidance-lark-mcp
+  ```
 
 ## Development
 
