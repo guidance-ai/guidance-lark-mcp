@@ -715,3 +715,22 @@ def test_init_defaults_to_openai(mock_openai_cls):
         ctx = LLGuidanceToolContext(enable_generation=True)
         mock_openai_cls.assert_called_once()
         assert ctx._openai_client is not None
+
+
+@patch.dict("os.environ", {}, clear=False)
+def test_init_missing_credentials_does_not_crash():
+    """Test that missing credentials don't crash the server on startup."""
+    env = {k: v for k, v in __import__("os").environ.items()
+           if k not in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "OPENAI_API_KEY")}
+    with patch.dict("os.environ", env, clear=True):
+        ctx = LLGuidanceToolContext(enable_generation=True)
+        # Server should start — client is None but no crash
+        assert ctx._openai_client is None
+        # Validation tools still work
+        result = ctx.validate_grammar('start: "hello"')
+        assert result.is_valid
+        # Generation returns a clear error
+        gen_result = ctx.generate_with_grammar(prompt="test", grammar='start: "hello"')
+        assert not gen_result.is_valid
+        assert "not initialized" in gen_result.error
+        assert "Initialization error" in gen_result.error

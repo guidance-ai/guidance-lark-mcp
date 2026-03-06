@@ -115,7 +115,9 @@ class LLGuidanceToolContext:
 
             logger.info("Default model: %s", self.model)
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize OpenAI client: {e}")
+            self._openai_client = None
+            self._generation_init_error = str(e)
+            logger.warning("Generation disabled: failed to initialize OpenAI client: %s", e)
 
     def _init_azure_client(self, azure_endpoint: str):
         """Initialize AzureOpenAI client with Entra ID (DefaultAzureCredential) or API key."""
@@ -183,10 +185,12 @@ class LLGuidanceToolContext:
             )
 
         if self._openai_client is None:
+            init_error = getattr(self, "_generation_init_error", None)
+            detail = f" Initialization error: {init_error}" if init_error else ""
             return GenerationResult(
                 generated_text="",
                 is_valid=False,
-                error="OpenAI client not initialized. Set OPENAI_API_KEY environment variable.",
+                error=f"OpenAI client not initialized. Check OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT.{detail}",
             )
 
         try:

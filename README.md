@@ -24,7 +24,39 @@ pip install -e .
 
 ## MCP Client Configuration
 
-### VS Code / Copilot CLI (`~/.copilot/mcp-config.json`)
+### GitHub Copilot CLI
+
+You can add the server using the interactive `/mcp add` command or by editing the config file directly. See the [Copilot CLI MCP documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers) for full details.
+
+**Option 1: Interactive setup**
+
+In the Copilot CLI, run `/mcp add`, select **Local/STDIO**, and enter `uvx guidance-lark-mcp` as the command.
+
+**Option 2: Edit config file**
+
+Add the following to `~/.copilot/mcp-config.json`:
+
+```json
+{
+  "mcpServers": {
+    "grammar-tools": {
+      "type": "local",
+      "command": "uvx",
+      "args": ["guidance-lark-mcp"],
+      "env": {
+        "ENABLE_GENERATION": "true",
+        "OPENAI_API_KEY": "your-key-here"
+      },
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+After saving, use `/mcp show` to verify the server is connected.
+
+### VS Code
+
 ```json
 {
   "mcpServers": {
@@ -163,6 +195,17 @@ The `examples/` directory includes sample grammars built using these tools, with
 
 - **[GraphQL](examples/graphql/)** — executable subset of the GraphQL spec (queries, mutations, fragments, variables)
 
+## Troubleshooting
+
+**Server fails to connect in Copilot CLI / VS Code?**
+
+The server will start even if generation credentials are missing — grammar validation and batch testing will still work. If `ENABLE_GENERATION=true` but no API key or Azure endpoint is configured, you'll see a clear error when calling `generate_with_grammar` instead of a startup crash.
+
+To debug, try running the server directly:
+```bash
+ENABLE_GENERATION=true uvx guidance-lark-mcp
+```
+
 ## Development
 
 ```bash
@@ -182,7 +225,7 @@ git push origin v0.1.0
 ```
 
 This triggers the release workflow which:
-1. Runs tests across Python 3.10–3.12
+1. Runs tests across Python 3.10–3.14
 2. Builds and publishes to PyPI (via Trusted Publishing)
 3. Publishes to the MCP Registry
 4. Creates a GitHub Release
