@@ -43,15 +43,33 @@ Add the following to `~/.copilot/mcp-config.json`:
       "type": "local",
       "command": "uvx",
       "args": ["guidance-lark-mcp"],
-      "env": {
-        "ENABLE_GENERATION": "true",
-        "OPENAI_API_KEY": "your-key-here"
-      },
       "tools": ["*"]
     }
   }
 }
 ```
+
+This gives you grammar validation and batch testing out of the box. To also enable LLM-powered generation (`generate_with_grammar`), add `ENABLE_GENERATION` and your credentials to `env`:
+
+```json
+"env": {
+  "ENABLE_GENERATION": "true",
+  "OPENAI_API_KEY": "your-key-here"
+}
+```
+
+For Azure OpenAI (with Entra ID via `az login`), use `guidance-lark-mcp[azure]` and set the endpoint instead:
+
+```json
+"args": ["guidance-lark-mcp[azure]"],
+"env": {
+  "ENABLE_GENERATION": "true",
+  "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com/",
+  "OPENAI_MODEL": "your-deployment-name"
+}
+```
+
+See [Backend Configuration](#backend-configuration) for all supported backends.
 
 After saving, use `/mcp show` to verify the server is connected.
 
@@ -199,12 +217,22 @@ The `examples/` directory includes sample grammars built using these tools, with
 
 **Server fails to connect in Copilot CLI / VS Code?**
 
-The server will start even if generation credentials are missing — grammar validation and batch testing will still work. If `ENABLE_GENERATION=true` but no API key or Azure endpoint is configured, you'll see a clear error when calling `generate_with_grammar` instead of a startup crash.
+MCP clients like Copilot CLI only show "Connection closed" when a server crashes on startup. To see the actual error, run the server directly in your terminal:
 
-To debug, try running the server directly:
 ```bash
-ENABLE_GENERATION=true uvx guidance-lark-mcp
+uvx guidance-lark-mcp
 ```
+
+Or with generation enabled:
+
+```bash
+ENABLE_GENERATION=true OPENAI_API_KEY=your-key uvx guidance-lark-mcp
+```
+
+Common issues:
+- **Missing credentials** — `ENABLE_GENERATION=true` without a valid `OPENAI_API_KEY` or `AZURE_OPENAI_ENDPOINT`. The server will still start and serve validation tools; `generate_with_grammar` will return a descriptive error.
+- **Azure Entra ID** — make sure you've run `az login` and are using `guidance-lark-mcp[azure]` (not the base package).
+- **Slow first start** — `uvx` needs to resolve and install dependencies on first run, which may exceed the MCP client's connection timeout. Run `uvx guidance-lark-mcp` once manually to warm the cache.
 
 ## Development
 
@@ -215,19 +243,3 @@ uv sync
 uv run pytest tests/ -q
 ```
 
-## Publishing
-
-Releases are automated via GitHub Actions. To publish a new version:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-This triggers the release workflow which:
-1. Runs tests across Python 3.10–3.14
-2. Builds and publishes to PyPI (via Trusted Publishing)
-3. Publishes to the MCP Registry
-4. Creates a GitHub Release
-
-PyPI publishing uses [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC) — no API tokens needed.
