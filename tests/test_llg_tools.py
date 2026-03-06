@@ -685,6 +685,7 @@ def test_generate_no_client():
     ctx.enable_generation = True
     ctx.model = "gpt-4.1"
     ctx._openai_client = None
+    ctx._generation_init_error = None
 
     result = ctx.generate_with_grammar(
         prompt="Generate something",
@@ -733,4 +734,5 @@ def test_init_missing_credentials_does_not_crash():
         gen_result = ctx.generate_with_grammar(prompt="test", grammar='start: "hello"')
         assert not gen_result.is_valid
         assert "not initialized" in gen_result.error
-        assert "Initialization error" in gen_result.error
+        assert "OPENAI_API_KEY" in gen_result.error
+        assert "AZURE_OPENAI_ENDPOINT" in gen_result.error
